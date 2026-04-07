@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cribl Framework — Entitlement Lookup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f8fafc;
+      --surface: #ffffff;
+      --border:  #e2e8f0;
+      --accent:  #e53e3e;
+      --accent2: #0284c7;
+      --text:    #1e293b;
+      --muted:   #64748b;
+      --success: #16a34a;
+      --radius:  8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .logo-text { font-weight: 700; font-size: 1.05rem; }
+    .logo-text a { color: inherit; text-decoration: none; }
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      background: #dbeafe;
+      color: var(--accent2);
+    }
+    .nav-links {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .84rem;
+      padding: 5px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      transition: all .15s;
+    }
+    .nav-links a:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 2rem 80px;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls input[type="text"] {
+      flex: 1;
+      min-width: 220px;
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      background: var(--surface);
+      color: var(--text);
+    }
+    .controls input[type="text"]:focus { border-color: var(--accent2); }
+    .controls select {
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--surface);
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary { background: var(--accent2); color: white; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-secondary { background: #e0f2fe; color: var(--accent2); }
+    .btn-secondary:hover { background: #bae6fd; }
+
+    /* ── Stats ── */
+    .stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      min-width: 130px;
+    }
+    .stat-card .label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-card .value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    /* ── Pagination ── */
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius) var(--radius) 0 0;
+      border-bottom: none;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .pagination-bar .info { font-size: 13px; color: var(--muted); }
+    .pagination-bar .info strong { color: var(--text); }
+    .pagination-controls { display: flex; align-items: center; gap: 6px; }
+    .pagination-controls button {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+      color: var(--text);
+    }
+    .pagination-controls button:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--accent2);
+    }
+    .pagination-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination-controls button.active {
+      background: var(--accent2);
+      color: white;
+      border-color: var(--accent2);
+    }
+    .pagination-controls select {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    /* ── Table ── */
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius) var(--radius);
+      overflow-x: auto;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      background: var(--text);
+      color: white;
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { background: #334155; }
+    thead th .sort-arrow { margin-left: 4px; opacity: 0.4; font-size: 10px; }
+    thead th.sorted .sort-arrow { opacity: 1; }
+
+    .col-filters th {
+      background: var(--bg);
+      padding: 6px 8px;
+      position: sticky;
+      top: 40px;
+      z-index: 9;
+      cursor: default;
+    }
+    .col-filters input {
+      width: 100%;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+      background: var(--surface);
+      color: var(--text);
+    }
+    .col-filters input:focus { border-color: var(--accent2); }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:hover { background: #f0f7ff; }
+    tbody tr:nth-child(even) { background: var(--bg); }
+    tbody tr:nth-child(even):hover { background: #e8f0fe; }
+    tbody tr.error-row { background: #fef2f2; }
+
+    tbody td { padding: 10px 14px; font-size: 13px; vertical-align: top; }
+
+    .cluster-badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #dbeafe;
+      color: var(--accent2);
+      white-space: nowrap;
+    }
+    .role-tag {
+      display: inline-block;
+      padding: 2px 7px;
+      margin: 1px 2px;
+      border-radius: 3px;
+      font-size: 11px;
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    .roles-cell { max-width: 400px; }
+    .roles-collapsed {
+      max-height: 60px;
+      overflow: hidden;
+      position: relative;
+    }
+    .roles-collapsed::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 24px;
+      background: linear-gradient(transparent, var(--surface));
+      pointer-events: none;
+    }
+    .roles-toggle {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--accent2);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .roles-toggle:hover { text-decoration: underline; }
+
+    .status-enabled { color: #166534; font-weight: 600; font-size: 12px; }
+    .status-disabled { color: #b91c1c; font-weight: 600; font-size: 12px; }
+    .error-text { color: #b91c1c; font-style: italic; }
+
+    .loading { text-align: center; padding: 60px; color: var(--muted); }
+    .loading .spinner {
+      display: inline-block;
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent2);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state { text-align: center; padding: 60px; color: var(--muted); }
+    .empty-state h3 { margin-bottom: 8px; color: var(--text); }
+
+    .dn-text {
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      max-width: 300px;
+    }
+    .row-num {
+      color: #cbd5e1;
+      font-size: 11px;
+      text-align: right;
+      padding-right: 8px;
+      width: 40px;
+      min-width: 40px;
+    }
+
+    /* ── Error alert ── */
+    .alert-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      font-size: .88rem;
+      display: none;
+    }
+    .alert-error.visible { display: block; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: .82rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      .controls { flex-direction: column; }
+      .controls input[type="text"] { min-width: unset; width: 100%; }
+      .table-container { max-height: 60vh; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">&#128225;</div>
+  <span class="logo-text"><a href="/">Cribl Framework</a></span>
+  <span class="badge">Entitlements</span>
+  <div class="nav-links">
+    <a href="{{ url_for('portal_index') }}">Portal</a>
+    <a href="{{ url_for('cribl_app_page') }}">Pusher</a>
+    <a href="{{ url_for('portal_admin_update_status') }}">Admin</a>
+    {% if current_user %}
+    <span style="color:var(--muted);font-size:.84rem;">{{ current_display_name }}</span>
+    <a href="{{ url_for('logout') }}" style="border-color:var(--accent);color:var(--accent);">Logout</a>
+    {% endif %}
+  </div>
+</header>
+
+<main>
+  <div id="alertError" class="alert-error" role="alert"></div>
+
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Global search: cluster, entitlement, role...">
+    <select id="clusterFilter">
+      <option value="">All Clusters</option>
+    </select>
+    <select id="statusFilter">
+      <option value="">All Status</option>
+      <option value="enabled">Enabled</option>
+      <option value="disabled">Disabled</option>
+    </select>
+    <button class="btn btn-primary" id="refreshBtn" onclick="fetchEntitlements()">Refresh</button>
+    <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
+  </div>
+
+  <div class="stats" id="statsBar" style="display:none;">
+    <div class="stat-card">
+      <div class="label">Clusters</div>
+      <div class="value" id="statClusters">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Entitlements</div>
+      <div class="value" id="statEntitlements">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Unique Roles</div>
+      <div class="value" id="statRoles">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Role Mappings</div>
+      <div class="value" id="statMappings">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Showing</div>
+      <div class="value" id="statShowing">0</div>
+    </div>
+  </div>
+
+  <div class="pagination-bar" id="paginationBar" style="display:none;">
+    <div class="info" id="pageInfo"></div>
+    <div class="pagination-controls">
+      <span style="font-size:13px;color:var(--muted);">Rows/page:</span>
+      <select id="pageSizeSelect" onchange="changePageSize()">
+        <option value="50">50</option>
+        <option value="100" selected>100</option>
+        <option value="250">250</option>
+        <option value="500">500</option>
+        <option value="0">All</option>
+      </select>
+      <button onclick="goToPage(1)" id="btnFirst" title="First page">&laquo;</button>
+      <button onclick="goToPage(currentPage-1)" id="btnPrev" title="Previous page">&lsaquo;</button>
+      <span id="pageButtons"></span>
+      <button onclick="goToPage(currentPage+1)" id="btnNext" title="Next page">&rsaquo;</button>
+      <button onclick="goToPage(totalPages)" id="btnLast" title="Last page">&raquo;</button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px;cursor:default;">#</th>
+          <th data-col="cluster" onclick="sortBy('cluster')">
+            Cluster <span class="sort-arrow">&#9650;</span>
+          </th>
+          <th data-col="entitlement" onclick="sortBy('entitlement')">
+            Entitlement (CN) <span class="sort-arrow">&#9650;</span>
+          </th>
+          <th data-col="entitlementDN" onclick="sortBy('entitlementDN')">
+            Full DN <span class="sort-arrow">&#9650;</span>
+          </th>
+          <th data-col="mappingName" onclick="sortBy('mappingName')">
+            Role Mapping <span class="sort-arrow">&#9650;</span>
+          </th>
+          <th style="cursor:default;">Assigned Roles</th>
+          <th data-col="enabled" onclick="sortBy('enabled')">
+            Status <span class="sort-arrow">&#9650;</span>
+          </th>
+        </tr>
+        <tr class="col-filters">
+          <th></th>
+          <th><input type="text" id="filterCluster" placeholder="Filter..." oninput="applyFilters()"></th>
+          <th><input type="text" id="filterEntitlement" placeholder="Filter..." oninput="applyFilters()"></th>
+          <th><input type="text" id="filterDN" placeholder="Filter..." oninput="applyFilters()"></th>
+          <th><input type="text" id="filterMapping" placeholder="Filter..." oninput="applyFilters()"></th>
+          <th><input type="text" id="filterRoles" placeholder="Filter..." oninput="applyFilters()"></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr>
+          <td colspan="7">
+            <div class="loading">
+              <div class="spinner"></div>
+              <div>Loading entitlements from all clusters...</div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer>
+  Cribl Framework — Entitlement Lookup
+</footer>
+
+<script>
+  let allData = [];
+  let filteredData = [];
+  let currentSort = { col: 'cluster', asc: true };
+  let currentPage = 1;
+  let pageSize = 100;
+  let totalPages = 1;
+
+  async function fetchEntitlements() {
+    const btn = document.getElementById('refreshBtn');
+    const tbody = document.getElementById('tableBody');
+    const alertEl = document.getElementById('alertError');
+
+    alertEl.classList.remove('visible');
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    document.getElementById('paginationBar').style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="7">' +
+      '<div class="loading"><div class="spinner"></div><div>Fetching entitlements from all clusters...</div></div>' +
+      '</td></tr>';
+
+    try {
+      const response = await fetch('/api/entitlements');
+      const data = await response.json();
+
+      if (data.errors) {
+        alertEl.textContent = data.errors.join(' ');
+        alertEl.classList.add('visible');
+        tbody.innerHTML = '<tr><td colspan="7">' +
+          '<div class="empty-state"><h3>Error</h3><p>' + esc(data.errors.join(' ')) + '</p></div>' +
+          '</td></tr>';
+        return;
+      }
+
+      allData = data;
+      populateClusterFilter();
+      currentPage = 1;
+      applyFilters();
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="7">' +
+        '<div class="empty-state"><h3>Connection Error</h3><p>' + esc(err.message) + '</p></div>' +
+        '</td></tr>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Refresh';
+    }
+  }
+
+  function populateClusterFilter() {
+    const select = document.getElementById('clusterFilter');
+    const clusters = [...new Set(allData.map(d => d.cluster))].sort();
+    select.innerHTML = '<option value="">All Clusters</option>';
+    clusters.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      select.appendChild(opt);
+    });
+  }
+
+  function applyFilters() {
+    const globalSearch = document.getElementById('searchInput').value.toLowerCase();
+    const clusterDrop = document.getElementById('clusterFilter').value;
+    const statusDrop = document.getElementById('statusFilter').value;
+
+    const fCluster = document.getElementById('filterCluster').value.toLowerCase();
+    const fEntitlement = document.getElementById('filterEntitlement').value.toLowerCase();
+    const fDN = document.getElementById('filterDN').value.toLowerCase();
+    const fMapping = document.getElementById('filterMapping').value.toLowerCase();
+    const fRoles = document.getElementById('filterRoles').value.toLowerCase();
+
+    filteredData = allData.filter(row => {
+      if (clusterDrop && row.cluster !== clusterDrop) return false;
+      if (statusDrop === 'enabled' && !row.enabled) return false;
+      if (statusDrop === 'disabled' && row.enabled) return false;
+
+      if (fCluster && !row.cluster.toLowerCase().includes(fCluster)) return false;
+      if (fEntitlement && !row.entitlement.toLowerCase().includes(fEntitlement)) return false;
+      if (fDN && !(row.entitlementDN || '').toLowerCase().includes(fDN)) return false;
+      if (fMapping && !row.mappingName.toLowerCase().includes(fMapping)) return false;
+      if (fRoles && !row.roles.join(' ').toLowerCase().includes(fRoles)) return false;
+
+      if (globalSearch) {
+        const haystack = [
+          row.cluster, row.entitlement, row.entitlementDN,
+          row.mappingName, ...row.roles
+        ].join(' ').toLowerCase();
+        if (!haystack.includes(globalSearch)) return false;
+      }
+
+      return true;
+    });
+
+    filteredData.sort((a, b) => {
+      let valA, valB;
+      if (currentSort.col === 'enabled') {
+        valA = a.enabled ? '1' : '0';
+        valB = b.enabled ? '1' : '0';
+      } else {
+        valA = String(a[currentSort.col] || '').toLowerCase();
+        valB = String(b[currentSort.col] || '').toLowerCase();
+      }
+      const cmp = valA.localeCompare(valB);
+      return currentSort.asc ? cmp : -cmp;
+    });
+
+    updateStats();
+    updatePagination();
+    renderTable();
+  }
+
+  function updateStats() {
+    const data = filteredData.filter(d => !d.error);
+    const clusters = new Set(data.map(d => d.cluster));
+    const entitlements = new Set(data.map(d => d.entitlement));
+    const roles = new Set(data.flatMap(d => d.roles));
+    const mappings = new Set(data.map(d => d.cluster + ':' + d.mappingName));
+
+    document.getElementById('statClusters').textContent = clusters.size;
+    document.getElementById('statEntitlements').textContent = entitlements.size;
+    document.getElementById('statRoles').textContent = roles.size;
+    document.getElementById('statMappings').textContent = mappings.size;
+    document.getElementById('statShowing').textContent = filteredData.length;
+    document.getElementById('statsBar').style.display = 'flex';
+  }
+
+  function updatePagination() {
+    if (pageSize === 0) {
+      totalPages = 1;
+      currentPage = 1;
+    } else {
+      totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+    }
+
+    var bar = document.getElementById('paginationBar');
+    bar.style.display = 'flex';
+
+    var start = pageSize === 0 ? 1 : (currentPage - 1) * pageSize + 1;
+    var end = pageSize === 0 ? filteredData.length : Math.min(currentPage * pageSize, filteredData.length);
+    document.getElementById('pageInfo').innerHTML =
+      'Showing <strong>' + (filteredData.length > 0 ? start : 0) + '</strong>-<strong>' + end + '</strong> of <strong>' + filteredData.length + '</strong> entries' +
+      (filteredData.length < allData.length ? ' (filtered from ' + allData.length + ')' : '');
+
+    document.getElementById('btnFirst').disabled = currentPage <= 1;
+    document.getElementById('btnPrev').disabled = currentPage <= 1;
+    document.getElementById('btnNext').disabled = currentPage >= totalPages;
+    document.getElementById('btnLast').disabled = currentPage >= totalPages;
+
+    var container = document.getElementById('pageButtons');
+    container.innerHTML = '';
+    var maxButtons = 7;
+    var startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    var endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    if (endPage - startPage < maxButtons - 1) startPage = Math.max(1, endPage - maxButtons + 1);
+
+    for (var i = startPage; i <= endPage; i++) {
+      var btn = document.createElement('button');
+      btn.textContent = i;
+      btn.onclick = (function(page) { return function() { goToPage(page); }; })(i);
+      if (i === currentPage) btn.className = 'active';
+      container.appendChild(btn);
+    }
+  }
+
+  function goToPage(page) {
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    currentPage = page;
+    updatePagination();
+    renderTable();
+    document.querySelector('.table-container').scrollTop = 0;
+  }
+
+  function changePageSize() {
+    pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+    currentPage = 1;
+    updatePagination();
+    renderTable();
+  }
+
+  function sortBy(col) {
+    if (currentSort.col === col) {
+      currentSort.asc = !currentSort.asc;
+    } else {
+      currentSort.col = col;
+      currentSort.asc = true;
+    }
+
+    document.querySelectorAll('thead tr:first-child th').forEach(function(th) {
+      th.classList.remove('sorted');
+      var arrow = th.querySelector('.sort-arrow');
+      if (arrow) arrow.innerHTML = '&#9650;';
+    });
+    var activeTh = document.querySelector('thead tr:first-child th[data-col="' + col + '"]');
+    if (activeTh) {
+      activeTh.classList.add('sorted');
+      activeTh.querySelector('.sort-arrow').innerHTML = currentSort.asc ? '&#9650;' : '&#9660;';
+    }
+
+    currentPage = 1;
+    applyFilters();
+  }
+
+  function renderTable() {
+    var tbody = document.getElementById('tableBody');
+
+    var start = pageSize === 0 ? 0 : (currentPage - 1) * pageSize;
+    var end = pageSize === 0 ? filteredData.length : start + pageSize;
+    var pageData = filteredData.slice(start, end);
+
+    if (pageData.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7">' +
+        '<div class="empty-state"><h3>No entitlements found</h3><p>Try adjusting your search or filters.</p></div>' +
+        '</td></tr>';
+      return;
+    }
+
+    var rows = [];
+    for (var i = 0; i < pageData.length; i++) {
+      var row = pageData[i];
+      var rowNum = start + i + 1;
+
+      if (row.error) {
+        rows.push('<tr class="error-row">' +
+          '<td class="row-num">' + rowNum + '</td>' +
+          '<td><span class="cluster-badge">' + esc(row.cluster) + '</span></td>' +
+          '<td colspan="4" class="error-text">' + esc(row.entitlement) + '</td>' +
+          '<td></td></tr>');
+        continue;
+      }
+
+      var rolesHtml = row.roles.map(function(r) { return '<span class="role-tag">' + esc(r) + '</span>'; }).join('');
+      var roleCount = row.roles.length;
+      var needsCollapse = roleCount > 5;
+      var statusClass = row.enabled ? 'status-enabled' : 'status-disabled';
+      var statusText = row.enabled ? 'Enabled' : 'Disabled';
+
+      var rolesCell;
+      if (roleCount === 0) {
+        rolesCell = '<em style="color:var(--muted)">No roles</em>';
+      } else if (needsCollapse) {
+        var id = 'roles-' + rowNum;
+        rolesCell = '<div class="roles-cell">' +
+          '<div id="' + id + '" class="roles-collapsed">' + rolesHtml + '</div>' +
+          '<span class="roles-toggle" onclick="toggleRoles(\'' + id + '\', this)">' + roleCount + ' roles - click to expand</span>' +
+          '</div>';
+      } else {
+        rolesCell = '<div class="roles-cell">' + rolesHtml + '</div>';
+      }
+
+      rows.push('<tr>' +
+        '<td class="row-num">' + rowNum + '</td>' +
+        '<td><span class="cluster-badge">' + esc(row.cluster) + '</span></td>' +
+        '<td><strong>' + esc(row.entitlement) + '</strong></td>' +
+        '<td class="dn-text">' + esc(row.entitlementDN) + '</td>' +
+        '<td>' + esc(row.mappingName) + '</td>' +
+        '<td>' + rolesCell + '</td>' +
+        '<td><span class="' + statusClass + '">' + statusText + '</span></td>' +
+        '</tr>');
+    }
+
+    tbody.innerHTML = rows.join('');
+  }
+
+  function toggleRoles(id, toggleEl) {
+    var el = document.getElementById(id);
+    if (el.classList.contains('roles-collapsed')) {
+      el.classList.remove('roles-collapsed');
+      toggleEl.textContent = 'collapse';
+    } else {
+      el.classList.add('roles-collapsed');
+      var count = el.querySelectorAll('.role-tag').length;
+      toggleEl.textContent = count + ' roles - click to expand';
+    }
+  }
+
+  function exportCSV() {
+    if (filteredData.length === 0) return;
+
+    var headers = ['Cluster', 'Entitlement (CN)', 'Full DN', 'Role Mapping', 'Assigned Roles', 'Status'];
+    var csvRows = [headers.join(',')];
+
+    for (var j = 0; j < filteredData.length; j++) {
+      var row = filteredData[j];
+      if (row.error) continue;
+      csvRows.push([
+        csvEsc(row.cluster),
+        csvEsc(row.entitlement),
+        csvEsc(row.entitlementDN),
+        csvEsc(row.mappingName),
+        csvEsc(row.roles.join('; ')),
+        row.enabled ? 'Enabled' : 'Disabled'
+      ].join(','));
+    }
+
+    var blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'elk_entitlements_' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function csvEsc(str) {
+    if (!str) return '';
+    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || str.indexOf('\n') !== -1) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }
+
+  function esc(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Event listeners
+  document.getElementById('searchInput').addEventListener('input', function() { currentPage = 1; applyFilters(); });
+  document.getElementById('clusterFilter').addEventListener('change', function() { currentPage = 1; applyFilters(); });
+  document.getElementById('statusFilter').addEventListener('change', function() { currentPage = 1; applyFilters(); });
+
+  // Ctrl+F focuses the search
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      document.getElementById('searchInput').focus();
+    }
+  });
+
+  // Initial load
+  fetchEntitlements();
+</script>
+</body>
+</html>

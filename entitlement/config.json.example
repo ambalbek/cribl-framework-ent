@@ -1,0 +1,23 @@
+{
+  "clusters": [
+    {
+      "name": "production",
+      "url": "https://elk-prod.example.com:9200",
+      "username": "elastic",
+      "password": "changeme"
+    },
+    {
+      "name": "staging",
+      "url": "https://elk-staging.example.com:9200",
+      "username": "elastic",
+      "password": "changeme"
+    },
+    {
+      "name": "development",
+      "url": "https://elk-dev.example.com:9200",
+      "username": "elastic",
+      "password": "changeme"
+    }
+  ],
+  "entitlementFilter": "entitlements"
+}

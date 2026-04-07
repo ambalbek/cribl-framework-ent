@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cribl Framework — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f8fafc;
+      --surface: #ffffff;
+      --border:  #e2e8f0;
+      --accent:  #e53e3e;
+      --accent2: #0284c7;
+      --text:    #1e293b;
+      --muted:   #64748b;
+      --success: #16a34a;
+      --radius:  8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .logo-text { font-weight: 700; font-size: 1.05rem; }
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      background: #dbeafe;
+      color: var(--accent2);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 80px 1rem 80px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .card-title span { color: var(--accent); }
+
+    .card-sub {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 28px;
+    }
+
+    .form-group { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: .84rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .required-star { color: var(--accent); margin-left: 2px; }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: .9rem;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--accent2);
+    }
+
+    .alert-error {
+      background: rgba(255,75,75,.08);
+      border: 1px solid rgba(255,75,75,.3);
+      color: #b91c1c;
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      font-size: .87rem;
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--accent2);
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: var(--radius);
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s;
+      margin-top: 8px;
+    }
+    .btn-submit:hover { opacity: .85; }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: .82rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 500px) {
+      .card { padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">&#128225;</div>
+  <span class="logo-text">Cribl Framework</span>
+  <span class="badge">Login</span>
+</header>
+
+<main>
+  <div class="card">
+    <p class="card-title">Sign <span>In</span></p>
+    <p class="card-sub">Enter your LAN credentials to continue.</p>
+
+    {% if error %}
+    <div class="alert-error" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('login_submit') }}">
+      <input type="hidden" name="next" value="{{ request.args.get('next', '/') }}" />
+
+      <div class="form-group">
+        <label for="username">LAN ID <span class="required-star">*</span></label>
+        <input type="text" id="username" name="username" placeholder="e.g. jsmith" autocomplete="username" autofocus />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password <span class="required-star">*</span></label>
+        <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+
+      <button type="submit" class="btn-submit">Sign In</button>
+    </form>
+  </div>
+</main>
+
+<footer>
+  Cribl Framework — Unified Onboarding Platform
+</footer>
+
+</body>
+</html>
