@@ -407,67 +407,32 @@
     </div>
   </div>
 
-  <!-- Quick-start -->
-  <p class="section-title" id="usage">Workflow</p>
-  <ol class="steps">
-    <li>
-      <div class="step-num">1</div>
-      <div>
-        <h4>Client submits an onboarding request</h4>
-        <p>Open the <strong>Onboarding Portal</strong> and fill in App ID, App Name, Region, and Entitlement Groups. A unique Request ID is returned.</p>
-      </div>
-    </li>
-    <li>
-      <div class="step-num">2</div>
-      <div>
-        <h4>Platform team reviews and processes</h4>
-        <p>Open the <strong>Cribl Pusher</strong>, select workspace and worker group(s), enter the app details, and run with Dry Run first.</p>
-      </div>
-    </li>
-    <li>
-      <div class="step-num">3</div>
-      <div>
-        <h4>Routes and destinations are created</h4>
-        <p>Uncheck Dry Run and re-run. Routes are inserted above the catch-all, destinations are created, and ELK roles are provisioned.</p>
-      </div>
-    </li>
-    <li>
-      <div class="step-num">4</div>
-      <div>
-        <h4>Request status is updated</h4>
-        <p>After successful processing, use the <strong>Admin</strong> panel to mark the request as "done". The client can check their Request ID status.</p>
-      </div>
-    </li>
-    <li>
-      <div class="step-num">5</div>
-      <div>
-        <h4>Verify entitlements</h4>
-        <p>Open the <strong>Entitlement Lookup</strong> page to browse role mappings across all ELK clusters. Search, filter, and export entitlement data to CSV.</p>
-      </div>
-    </li>
-  </ol>
+  <!-- Authentication & RBAC -->
+  <p class="section-title" id="usage">Authentication &amp; Access Control</p>
 
-  <!-- Authentication Flow -->
-  <p class="section-title">Authentication Flow</p>
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:24px;font-size:.85rem;">
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">User visits any page</span>
-    <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Redirected to /login</span>
-    <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Enter LAN ID + Password</span>
-    <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Validated against LDAP / AD</span>
-    <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">AD group &#8594; Role assigned</span>
-    <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">Session created</span>
+  <!-- Auth flow — two rows for readability -->
+  <div style="margin-bottom:16px;">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.85rem;margin-bottom:10px;">
+      <span style="background:var(--accent);color:#fff;padding:8px 16px;border-radius:var(--radius);font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;">Login</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">Visit any page</span>
+      <span style="color:var(--accent);">&#10132;</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Redirect to /login</span>
+      <span style="color:var(--accent);">&#10132;</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">LAN ID + Password</span>
+      <span style="color:var(--accent);">&#10132;</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Validate via LDAP / AD</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.85rem;">
+      <span style="background:var(--accent2);color:#fff;padding:8px 16px;border-radius:var(--radius);font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;">Role</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Check AD group membership</span>
+      <span style="color:var(--accent);">&#10132;</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Assign role (user / admin)</span>
+      <span style="color:var(--accent);">&#10132;</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">Create session &amp; redirect</span>
+    </div>
   </div>
 
   <!-- RBAC Access Matrix -->
-  <p class="section-title">Role-Based Access Control</p>
-  <div class="alert alert-info">
-    Access is determined by <strong>Active Directory group membership</strong>. Users in the admin AD group get full access. Users in the user AD group can access Portal and Entitlements only. Local fallback accounts are available when LDAP is down.
-  </div>
   <div style="overflow-x:auto;margin-bottom:48px;">
     <table style="width:100%;border-collapse:collapse;font-size:.88rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
       <thead>
@@ -512,18 +477,65 @@
     </table>
   </div>
 
+  <!-- Workflow -->
+  <p class="section-title">Workflow</p>
+  <ol class="steps">
+    <li>
+      <div class="step-num">1</div>
+      <div>
+        <h4>Authenticate via LDAP</h4>
+        <p>User visits the app, is redirected to <strong>/login</strong>, and enters LAN ID + password. Role is assigned based on AD group membership.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-num">2</div>
+      <div>
+        <h4>Client submits an onboarding request</h4>
+        <p>Open the <strong>Onboarding Portal</strong> — LAN ID and name are auto-populated from the session. Fill in App ID, App Name, Region, and Entitlement Groups.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-num">3</div>
+      <div>
+        <h4>Platform team reviews and processes</h4>
+        <p>Open the <strong>Cribl Pusher</strong> (admin only), select workspace and worker group(s), enter the app details, and run with Dry Run first.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-num">4</div>
+      <div>
+        <h4>Routes and destinations are created</h4>
+        <p>Uncheck Dry Run and re-run. Routes are inserted above the catch-all, destinations are created, and ELK roles are provisioned.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-num">5</div>
+      <div>
+        <h4>Request status is updated</h4>
+        <p>After successful processing, use the <strong>Admin</strong> panel (admin only) to mark the request as "done".</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-num">6</div>
+      <div>
+        <h4>Verify entitlements</h4>
+        <p>Open the <strong>Entitlement Lookup</strong> page to browse role mappings across all ELK clusters. Search, filter, and export to CSV.</p>
+      </div>
+    </li>
+  </ol>
+
   <!-- Entitlement Lookup flow -->
   <p class="section-title">Entitlement Lookup Flow</p>
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:48px;font-size:.85rem;">
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">User opens /entitlements</span>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:48px;font-size:.85rem;">
+    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">Open /entitlements</span>
     <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">App queries ES clusters</span>
+    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Query ES clusters</span>
     <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Extracts role mappings</span>
+    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Extract role mappings</span>
     <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Filters by entitlement CN</span>
+    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Filter by entitlement</span>
     <span style="color:var(--accent);">&#10132;</span>
-    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">Displays in searchable table</span>
+    <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);font-weight:600;">Searchable table + CSV</span>
   </div>
 
   <!-- Credentials priority -->
