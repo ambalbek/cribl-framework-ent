@@ -32,8 +32,9 @@ from pathlib import Path
 
 import requests as http_client
 import urllib3
-from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
-from ldap3 import Server, Connection, ALL
+from flask import Flask, Response, g, jsonify, redirect, render_template, request, session, url_for
+from onelogin.saml2.auth import OneLogin_Saml2_Auth
+from urllib.parse import urlparse
 from requests.auth import HTTPBasicAuth
 from werkzeug.exceptions import HTTPException
 
@@ -159,7 +160,7 @@ def load_config() -> dict:
         return json.load(f)
 
 
-# ── Session & LDAP configuration ─────────────────────────────────────────────
+# ── Session & SAML configuration ─────────────────────────────────────────────
 
 _startup_config = load_config()
 app.secret_key = _startup_config.get("secret_key", "CHANGE-ME-insecure-default")
@@ -172,88 +173,54 @@ app.permanent_session_lifetime = timedelta(
 )
 
 
-def ldap_authenticate(username, password):
-    """
-    Validate credentials against Active Directory and return the user's role.
-    Falls back to local admin accounts in config.json when LDAP is unavailable.
-    Returns (True, role, display_name) on success, (False, None, error_msg) on failure.
-    """
+def prepare_saml_request(flask_request):
+    """Convert a Flask request into the dict format python3-saml expects."""
+    url_data = urlparse(flask_request.url)
+    return {
+        "https": "on" if flask_request.scheme == "https" else "off",
+        "http_host": flask_request.host,
+        "server_port": str(url_data.port or ("443" if flask_request.scheme == "https" else "80")),
+        "script_name": flask_request.path,
+        "get_data": flask_request.args.copy(),
+        "post_data": flask_request.form.copy(),
+    }
+
+
+def init_saml_auth(req):
+    """Initialize SAML auth object from config.json settings."""
+    config = load_config()
+    saml_settings = config.get("auth", {}).get("saml", {})
+    return OneLogin_Saml2_Auth(req, saml_settings)
+
+
+def local_authenticate(username, password):
+    """Check local_admins and local_users fallback accounts."""
     config = load_config()
     auth = config.get("auth", {})
-
-    # Check local accounts first (fallback when LDAP is down)
     for admin in auth.get("local_admins", []):
         if admin.get("username") == username and admin.get("password") == password:
             log.info("Local admin auth OK — user=%s", username)
             return True, "admin", admin.get("display_name", username)
-
     for local_user in auth.get("local_users", []):
         if local_user.get("username") == username and local_user.get("password") == password:
             log.info("Local user auth OK — user=%s", username)
             return True, "user", local_user.get("display_name", username)
+    return False, None, "Invalid credentials."
 
-    ldap_url = auth.get("ldap_url", "")
-    use_ssl = auth.get("ldap_use_ssl", False)
-    bind_dn_template = auth.get("ldap_bind_dn_template", "{username}")
-    base_dn = auth.get("ldap_base_dn", "")
 
-    if not ldap_url:
-        log.error("LDAP auth — ldap_url not configured")
-        return False, None, "LDAP is not configured. Contact your administrator."
-
-    bind_dn = bind_dn_template.replace("{username}", username)
-
-    try:
-        server = Server(ldap_url, use_ssl=use_ssl, get_info=ALL, connect_timeout=10)
-        conn = Connection(server, user=bind_dn, password=password,
-                          auto_bind=True, read_only=True, receive_timeout=10)
-    except Exception as e:
-        log.warning("LDAP bind failed for user=%s: %s", username, e)
-        return False, None, "Invalid credentials."
-
-    try:
-        search_filter = f"(sAMAccountName={username})"
-        conn.search(base_dn, search_filter,
-                    attributes=["memberOf", "displayName", "cn"])
-
-        if not conn.entries:
-            log.warning("LDAP user not found: %s", username)
-            conn.unbind()
-            return False, None, "User not found in directory."
-
-        entry = conn.entries[0]
-        member_of = []
-        if hasattr(entry, "memberOf") and entry.memberOf:
-            member_of = [str(g).upper() for g in entry.memberOf.values]
-        display_name = str(entry.displayName) if hasattr(entry, "displayName") and entry.displayName else username
-
-        conn.unbind()
-
-        # Determine role from group membership — check admin first
-        roles_cfg = auth.get("roles", {})
-
-        admin_groups = [g.upper() for g in roles_cfg.get("admin", {}).get("ad_groups", [])]
-        for group_dn in member_of:
-            if group_dn in admin_groups:
-                log.info("LDAP auth OK — user=%s role=admin", username)
-                return True, "admin", display_name
-
-        user_groups = [g.upper() for g in roles_cfg.get("user", {}).get("ad_groups", [])]
-        for group_dn in member_of:
-            if group_dn in user_groups:
-                log.info("LDAP auth OK — user=%s role=user", username)
-                return True, "user", display_name
-
-        log.warning("LDAP auth denied — user=%s has no matching group", username)
-        return False, None, "You are not authorized to use this application. Contact your admin to be added to the appropriate AD group."
-
-    except Exception as e:
-        log.error("LDAP group lookup failed for user=%s: %s", username, e)
-        try:
-            conn.unbind()
-        except Exception:
-            pass
-        return False, None, "Authentication error during group lookup."
+def resolve_role_from_groups(groups):
+    """Map a list of group names from SAML assertion to a role."""
+    config = load_config()
+    roles_cfg = config.get("auth", {}).get("roles", {})
+    groups_upper = [g.upper() for g in groups]
+    # Check admin first (higher privilege)
+    for g in roles_cfg.get("admin", {}).get("groups", []):
+        if g.upper() in groups_upper:
+            return "admin"
+    for g in roles_cfg.get("user", {}).get("groups", []):
+        if g.upper() in groups_upper:
+            return "user"
+    return None
 
 
 # ── Auth decorators ───────────────────────────────────────────────────────────
@@ -624,18 +591,19 @@ def login_page():
 
 @app.route("/login", methods=["POST"])
 def login_submit():
+    """Handle local fallback login (username/password from config)."""
     username = (request.form.get("username") or "").strip()
     password = request.form.get("password") or ""
     next_url = request.form.get("next") or request.args.get("next") or "/"
 
     if not username or not password:
         return render_template("login.html",
-                               error="LAN ID and password are required.", next=next_url)
+                               error="Username and password are required.", next=next_url)
 
-    success, role, display_name_or_error = ldap_authenticate(username, password)
+    success, role, display_name_or_error = local_authenticate(username, password)
 
     if not success:
-        log.warning("Login failed for user=%s from %s", username, request.remote_addr)
+        log.warning("Local login failed for user=%s from %s", username, request.remote_addr)
         return render_template("login.html",
                                error=display_name_or_error, next=next_url)
 
@@ -644,15 +612,97 @@ def login_submit():
     session["role"] = role
     session["display_name"] = display_name_or_error
 
-    log.info("Login OK — user=%s role=%s from %s", username, role, request.remote_addr)
+    log.info("Local login OK — user=%s role=%s from %s", username, role, request.remote_addr)
 
-    # User role can only access portal and entitlements
     user_allowed = ("/portal", "/portal/", "/portal/api/submit", "/api/submit",
                     "/entitlements", "/entitlements/", "/api/entitlements")
     if role == "user" and next_url not in user_allowed:
         next_url = "/portal"
 
     return redirect(next_url)
+
+
+@app.route("/saml/login")
+def saml_login():
+    """Initiate SAML SSO — redirect browser to ForgeRock."""
+    req = prepare_saml_request(request)
+    saml_auth = init_saml_auth(req)
+    next_url = request.args.get("next", "/")
+    sso_url = saml_auth.login(return_to=next_url)
+    return redirect(sso_url)
+
+
+@app.route("/saml/acs", methods=["POST"])
+def saml_acs():
+    """Assertion Consumer Service — receives SAML Response from ForgeRock."""
+    req = prepare_saml_request(request)
+    saml_auth = init_saml_auth(req)
+    saml_auth.process_response()
+    errors = saml_auth.get_errors()
+
+    if errors:
+        error_reason = saml_auth.get_last_error_reason()
+        log.error("SAML ACS errors: %s | reason: %s", errors, error_reason)
+        return render_template("login.html",
+                               error="SSO authentication failed. Please try again or use local login."), 401
+
+    if not saml_auth.is_authenticated():
+        log.warning("SAML ACS — not authenticated")
+        return render_template("login.html",
+                               error="SSO authentication was not successful."), 401
+
+    # Extract attributes from SAML assertion
+    config = load_config()
+    attr_map = config.get("auth", {}).get("saml_attributes", {})
+    attributes = saml_auth.get_attributes()
+    name_id = saml_auth.get_nameid()
+
+    username_attr = attr_map.get("username", "uid")
+    display_attr = attr_map.get("display_name", "displayName")
+    groups_attr = attr_map.get("groups", "memberOf")
+
+    username = attributes.get(username_attr, [name_id])[0] if attributes.get(username_attr) else name_id
+    display_name = attributes.get(display_attr, [username])[0] if attributes.get(display_attr) else username
+    groups = attributes.get(groups_attr, [])
+
+    role = resolve_role_from_groups(groups)
+    if not role:
+        log.warning("SAML auth denied — user=%s has no matching group. Groups: %s", username, groups)
+        return render_template("login.html",
+                               error="You are not authorized. Contact your admin to be added to the appropriate group."), 403
+
+    session.clear()
+    session.permanent = True
+    session["username"] = username
+    session["role"] = role
+    session["display_name"] = display_name
+
+    log.info("SAML SSO login OK — user=%s role=%s from %s", username, role, request.remote_addr)
+
+    relay_state = request.form.get("RelayState", "/")
+    if not relay_state.startswith("/"):
+        relay_state = "/"
+
+    user_allowed = ("/portal", "/portal/", "/portal/api/submit", "/api/submit",
+                    "/entitlements", "/entitlements/", "/api/entitlements")
+    if role == "user" and relay_state not in user_allowed:
+        relay_state = "/portal"
+
+    return redirect(relay_state)
+
+
+@app.route("/saml/metadata")
+def saml_metadata():
+    """SP metadata XML — provide this URL to ForgeRock for SP registration."""
+    req = prepare_saml_request(request)
+    saml_auth = init_saml_auth(req)
+    settings = saml_auth.get_settings()
+    metadata = settings.get_sp_metadata()
+    errors = settings.validate_metadata(metadata)
+    if errors:
+        log.error("SAML metadata validation errors: %s", errors)
+        return "Metadata validation error", 500
+    return Response(metadata, mimetype="text/xml")
 
 
 @app.route("/logout")

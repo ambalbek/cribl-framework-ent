@@ -4,15 +4,44 @@
   "secret_key": "GENERATE_WITH: python -c \"import secrets; print(secrets.token_hex(32))\"",
 
   "auth": {
-    "_comment": "LDAP authentication and role-based access control. Configure your AD server and group mappings.",
-    "ldap_url": "ldap://your-ad-server.company.com:389",
-    "ldap_use_ssl": false,
-    "ldap_bind_dn_template": "DOMAIN\\{username}",
-    "ldap_base_dn": "DC=company,DC=com",
+    "_comment": "SAML 2.0 SSO via ForgeRock IdP with role-based access control.",
+    "saml": {
+      "strict": true,
+      "debug": false,
+      "sp": {
+        "entityId": "https://cribl-framework.company.com/saml/metadata",
+        "assertionConsumerService": {
+          "url": "https://cribl-framework.company.com/saml/acs",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+        },
+        "singleLogoutService": {
+          "url": "https://cribl-framework.company.com/saml/sls",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+        },
+        "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+      },
+      "idp": {
+        "entityId": "https://forgerock.company.com/openam",
+        "singleSignOnService": {
+          "url": "https://forgerock.company.com/openam/SSORedirect/metaAlias/idp",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+        },
+        "singleLogoutService": {
+          "url": "https://forgerock.company.com/openam/SLORedirect/metaAlias/idp",
+          "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+        },
+        "x509cert": "MIID_PASTE_YOUR_FORGEROCK_CERTIFICATE_HERE"
+      }
+    },
+    "saml_attributes": {
+      "username": "uid",
+      "display_name": "displayName",
+      "groups": "memberOf"
+    },
     "session_lifetime_minutes": 480,
     "local_admins": [
       {
-        "_comment": "Fallback admin account when LDAP is unavailable.",
+        "_comment": "Fallback admin account when ForgeRock is unavailable.",
         "username": "admin",
         "password": "CHANGE_ME_TO_A_STRONG_PASSWORD",
         "display_name": "Local Admin"
@@ -28,10 +57,10 @@
     ],
     "roles": {
       "admin": {
-        "ad_groups": ["CN=Cribl-Admins,OU=Groups,DC=company,DC=com"]
+        "groups": ["Cribl-Admins"]
       },
       "user": {
-        "ad_groups": ["CN=Cribl-Users,OU=Groups,DC=company,DC=com"]
+        "groups": ["Cribl-Users"]
       }
     }
   },

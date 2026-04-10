@@ -1,6 +1,6 @@
 # Cribl Framework
 
-Unified platform for application onboarding into **Cribl Stream** and **ELK**. Combines the **Onboarding Portal** (client-facing request form), **Cribl Pusher** (route/destination/ELK-role automation), and **Entitlement Lookup** (ELK role-mapping viewer) into a single Flask application with **LDAP-based role-based access control (RBAC)**.
+Unified platform for application onboarding into **Cribl Stream** and **ELK**. Combines the **Onboarding Portal** (client-facing request form), **Cribl Pusher** (route/destination/ELK-role automation), and **Entitlement Lookup** (ELK role-mapping viewer) into a single Flask application with **SAML 2.0 SSO (ForgeRock) role-based access control**.
 
 ---
 
@@ -81,13 +81,14 @@ Browse entitlement-to-role mappings across all configured Elasticsearch clusters
 
 After a successful run (non-dry-run), the framework **automatically updates the onboarding request status to `done`** in the Elasticsearch index. The operator simply pastes the `REQ-YYYYMMDD-XXXXXXXX` ID into the Portal Request ID field before running.
 
-### Authentication & Access Control (LDAP RBAC)
+### Authentication & Access Control (SAML 2.0 SSO)
 
-The framework uses **LDAP authentication** against Active Directory with role-based access control:
+The framework uses **SAML 2.0 SSO** via **ForgeRock** for authentication with role-based access control:
 
-- Users authenticate with their **LAN ID and password** via a login page
-- **Roles** are determined by AD group membership (configured in `config.json`)
+- Users click **"Sign in with ForgeRock SSO"** and authenticate on the ForgeRock IdP
+- **Roles** are determined by SAML group attributes in the assertion (configured in `config.json`)
 - **Session management** uses Flask's signed-cookie sessions (configurable lifetime)
+- **Local fallback** accounts are available when the IdP is unavailable
 
 **Page access matrix:**
 
@@ -101,7 +102,7 @@ The framework uses **LDAP authentication** against Active Directory with role-ba
 | `/cribl/app` (Pusher) | No | Yes |
 | `/portal/admin/update-status` | No | Yes |
 
-**Local fallback accounts** (when LDAP is unavailable):
+**Local fallback accounts** (when ForgeRock is unavailable):
 
 Configure in `config.json` under `auth.local_admins` and `auth.local_users`:
 
@@ -120,12 +121,12 @@ Configure in `config.json` under `auth.local_admins` and `auth.local_users`:
 
 ```
 0. User visits any page → Redirected to /login
-   → Enters LAN ID + Password → Validated against LDAP / AD
-   → AD group membership determines role (user or admin)
+   → Clicks "Sign in with ForgeRock SSO" → Redirected to ForgeRock IdP
+   → SAML assertion returned → Group attributes determine role (user or admin)
    → User role → Portal + Entitlements | Admin role → All pages
 
 1. Client opens the Onboarding Portal (/portal)
-   → LAN ID and name auto-populated from LDAP session
+   → Username and name auto-populated from SSO session
    → Fills in App ID, App Name, Region, Log Destination, Log Type, Entitlement Groups
    → Receives Request ID: REQ-20260327-A1B2C3D4
 
@@ -209,7 +210,7 @@ cribl-framework/
 │   ├── admin.html                  # Admin status update form
 │   ├── app.html                    # Cribl Pusher UI (2 tabs)
 │   ├── entitlements.html           # Entitlement Lookup page
-│   └── login.html                  # LDAP login page
+│   └── login.html                  # SSO login + local fallback page
 │
 ├── ops_rm_r_templates_output/      # Auto-created by rode_rm.py
 │
@@ -287,13 +288,17 @@ You should see the `=== TARGET ===` banner and a diff preview with no errors. **
 | `diff_lines` | int | `3` | Lines of context shown in the diff preview |
 | `admin_secret` | string | — | Secret for the admin status update API |
 | `secret_key` | string | — | Flask session signing key (generate a random string) |
-| `auth.ldap_url` | string | — | Active Directory LDAP URL (e.g. `ldap://ad.company.com:389`) |
-| `auth.ldap_use_ssl` | bool | `false` | Use LDAPS (port 636) instead of plain LDAP |
-| `auth.ldap_bind_dn_template` | string | `"{username}"` | Bind DN template — `{username}` is replaced with LAN ID |
-| `auth.ldap_base_dn` | string | — | Base DN for user search (e.g. `DC=company,DC=com`) |
+| `auth.saml.sp.entityId` | string | — | SAML Service Provider entity ID (your app URL + `/saml/metadata`) |
+| `auth.saml.sp.assertionConsumerService.url` | string | — | ACS URL (your app URL + `/saml/acs`) |
+| `auth.saml.idp.entityId` | string | — | ForgeRock IdP entity ID |
+| `auth.saml.idp.singleSignOnService.url` | string | — | ForgeRock SSO redirect URL |
+| `auth.saml.idp.x509cert` | string | — | ForgeRock signing certificate (base64) |
+| `auth.saml_attributes.username` | string | `"uid"` | SAML attribute name for username |
+| `auth.saml_attributes.display_name` | string | `"displayName"` | SAML attribute name for display name |
+| `auth.saml_attributes.groups` | string | `"memberOf"` | SAML attribute name for group list |
 | `auth.session_lifetime_minutes` | int | `480` | Session cookie lifetime in minutes (default 8 hours) |
-| `auth.roles.admin.ad_groups` | list | `[]` | AD group DNs that grant admin role |
-| `auth.roles.user.ad_groups` | list | `[]` | AD group DNs that grant user role |
+| `auth.roles.admin.groups` | list | `[]` | Group names that grant admin role |
+| `auth.roles.user.groups` | list | `[]` | Group names that grant user role |
 | `entitlement.clusters` | list | `[]` | Elasticsearch clusters for entitlement lookup (see below) |
 | `entitlement.entitlementFilter` | string | `"entitlements"` | Substring to match in role mapping rules |
 | `datastream.elk_url` | string | — | Elasticsearch URL for the onboarding requests index |
@@ -415,8 +420,11 @@ Opens `http://localhost:5000`. All features are available:
 | URL | What |
 |---|---|
 | `/` | Unified landing page (login required) |
-| `/login` | LDAP login page |
+| `/login` | SSO login page (ForgeRock SSO + local fallback) |
 | `/logout` | Clear session and redirect to login |
+| `/saml/login` | Initiate SAML SSO redirect to ForgeRock |
+| `/saml/acs` | SAML Assertion Consumer Service (receives ForgeRock response) |
+| `/saml/metadata` | SP metadata XML (provide to ForgeRock for registration) |
 | `/portal` | Onboarding request form (login required) |
 | `/portal/admin/update-status` | Admin status update |
 | `/cribl/app` | Cribl Pusher + ELK Roles UI |
@@ -469,8 +477,8 @@ Client-facing form with the following fields:
 
 | Field | Required | Description |
 |---|---|---|
-| LAN ID | auto | Auto-populated from LDAP session |
-| Name / Last Name | auto | Auto-populated from LDAP session |
+| LAN ID | auto | Auto-populated from SSO session |
+| Name / Last Name | auto | Auto-populated from SSO session |
 | APM ID | yes | Application ID |
 | App Name | yes | Application name (single word, underscores allowed) |
 | Region | yes | Azure North (azn) or Azure South (azs) |

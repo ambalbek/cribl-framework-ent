@@ -418,13 +418,13 @@
       <span style="color:var(--accent);">&#10132;</span>
       <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Redirect to /login</span>
       <span style="color:var(--accent);">&#10132;</span>
-      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">LAN ID + Password</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">ForgeRock SSO</span>
       <span style="color:var(--accent);">&#10132;</span>
-      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Validate via LDAP / AD</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">SAML assertion validated</span>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.85rem;">
       <span style="background:var(--accent2);color:#fff;padding:8px 16px;border-radius:var(--radius);font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;">Role</span>
-      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Check AD group membership</span>
+      <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Check SAML group attributes</span>
       <span style="color:var(--accent);">&#10132;</span>
       <span style="background:var(--surface);border:1px solid var(--border);padding:8px 16px;border-radius:var(--radius);">Assign role (user / admin)</span>
       <span style="color:var(--accent);">&#10132;</span>
@@ -483,15 +483,15 @@
     <li>
       <div class="step-num">1</div>
       <div>
-        <h4>Authenticate via LDAP</h4>
-        <p>User visits the app, is redirected to <strong>/login</strong>, and enters LAN ID + password. Role is assigned based on AD group membership.</p>
+        <h4>Authenticate via ForgeRock SSO</h4>
+        <p>User visits the app, is redirected to <strong>/login</strong>, and clicks <strong>Sign in with ForgeRock SSO</strong>. Role is assigned based on SAML group attributes.</p>
       </div>
     </li>
     <li>
       <div class="step-num">2</div>
       <div>
         <h4>Client submits an onboarding request</h4>
-        <p>Open the <strong>Onboarding Portal</strong> — LAN ID and name are auto-populated from the session. Fill in App ID, App Name, Region, and Entitlement Groups.</p>
+        <p>Open the <strong>Onboarding Portal</strong> — username and name are auto-populated from the SSO session. Fill in App ID, App Name, Region, and Entitlement Groups.</p>
       </div>
     </li>
     <li>
